@@ -338,8 +338,15 @@ class ModelConfig:
     @staticmethod
     def provider_listed(info: dict[str, Any]) -> bool:
         """Whether the catalog lists the provider ``info`` describes: a Claude
-        Code one only on a deployment that runs Claude Code turns."""
-        return info.get("sdk") != claude_code.SDK or claude_code.rows_available()
+        Code one only on a deployment that runs Claude Code turns, and the
+        chat rows only where the backend's own CLI signs in with each user's
+        saved token, the one place they run."""
+        sdk = info.get("sdk")
+        if sdk == claude_code.SDK:
+            return claude_code.rows_available()
+        if sdk == claude_code.CHAT_SDK:
+            return claude_code.backend_available()
+        return True
 
     def get_model_metadata(self) -> dict[str, dict[str, Any]]:
         """Return {model_key: {sdk, provider, access_type, ...}} for all listed models."""
@@ -824,9 +831,10 @@ class LLM:
         - "platform" — system key (platform pays, credits deducted)
 
         A Claude Code row is "oauth" with no key: the runtime signs in with
-        the setup token kept for langalpha, on the user's own plan.
+        the setup token kept for langalpha, on the user's own plan, and so
+        does the CLI behind a chat row.
         """
-        if self.sdk == claude_code.SDK:
+        if self.sdk in (claude_code.SDK, claude_code.CHAT_SDK):
             return "oauth"
         if self.api_key_override is not None:
             if self.provider_info.get("access_type") == "oauth":
@@ -881,6 +889,16 @@ class LLM:
             client = self._get_gemini_llm()
         elif self.sdk == claude_code.SDK:
             client = claude_code.ClaudeCodeTarget(model=self.model, effort=self.resolved_reasoning_effort)
+        elif self.sdk == claude_code.CHAT_SDK:
+            # Imported here: the SDK is an optional extra, and the row is
+            # listed only where it is installed (``provider_listed``). Built
+            # unbound; the server binds the user whose token signs it in.
+            from ptc_agent.agent.claude_code.chat_model import ChatClaudeAgentSDK
+
+            client = ChatClaudeAgentSDK(
+                model=self.model, effort=self.resolved_reasoning_effort,
+                max_tokens=self.parameters.get("max_tokens"),
+            )
         else:
             raise ValueError(f"Unsupported SDK: {self.sdk} for provider {self.provider}")
 

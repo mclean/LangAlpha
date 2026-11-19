@@ -107,6 +107,15 @@ async def backend_on(user_id: str) -> bool:
     return await saved_token_runs(user_id) and await user_feature_enabled(user_id, FEATURE)
 
 
+async def chat_on(user_id: str) -> bool:
+    """Whether the user's Claude Agent SDK rows run: only on a self-hosted
+    server (``backend_available``), and only where the saved token signs in
+    their Claude Code turns (``backend_on``), since it signs in these too."""
+    from src.llms.claude_code import backend_available
+
+    return backend_available() and await backend_on(user_id)
+
+
 def require(on: bool, why: str = "Claude Code is not on for your account.") -> None:
     if not on:
         raise OAuthRefusal(404, "unavailable", why)

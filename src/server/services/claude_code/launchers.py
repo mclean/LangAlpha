@@ -12,6 +12,7 @@ import asyncio
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+from ptc_agent.agent.claude_code.chat_model import Seat
 from ptc_agent.agent.claude_code.launcher import Credential, Launcher, LocalLauncher
 from ptc_agent.agent.claude_code.machine_token import token_name
 from ptc_agent.agent.claude_code.sandbox_launcher import sandbox_launcher
@@ -27,7 +28,7 @@ from .cli_slots import computer_cli_slot
 from .hosted import OnOwn, Refused, cli_placement, cloud_runs_in
 from .machine import RUNS_CLI, ComputerToken
 from .plan import UserPlan
-from .saved import refusal_stamp, refuse, stored_row
+from .saved import refusal_stamp, refuse, stored_row, usable
 
 if TYPE_CHECKING:
     from ptc_agent.core.sandbox.ptc_sandbox import PTCSandbox
@@ -80,6 +81,45 @@ class HostedCredential:
         if self._handed is not None:
             await refuse(self.user_id, *self._handed)
         raise ClaudeTurnFailed("token_refused", "Claude refused the saved setup token")
+
+
+class SavedCredential:
+    """The saved setup token as a Claude Agent SDK row's call reads it
+    (``launcher.TokenStore``), on the backend's own CLI: read as each call
+    starts, so a call after the user stopped it signing in their turns
+    (``chat_on``), or after Claude refused it, is refused before its CLI
+    starts. A token Claude refuses mid-call is recorded as refused
+    (``saved.refuse``), as a turn's is."""
+
+    def __init__(self, user_id: str) -> None:
+        self.user_id = user_id
+        self._handed: tuple[str, Any] | None = None
+
+    async def read(self) -> Credential | None:
+        from .flow import chat_on
+
+        if not await chat_on(self.user_id):
+            raise ClaudeTurnFailed("choice_changed", "the saved setup token no longer signs in this account's calls")
+        self._handed = None
+        row = await stored_row(self.user_id)
+        if row is None:
+            return None
+        if not await usable(row):
+            raise ClaudeTurnFailed("token_refused", "Claude refused the saved setup token")
+        self._handed = refusal_stamp(row)
+        return Credential(row["access_token"])
+
+    async def refused(self) -> None:
+        if self._handed is not None:
+            await refuse(self.user_id, *self._handed)
+        raise ClaudeTurnFailed("token_refused", "Claude refused the saved setup token")
+
+
+def chat_seat(user_id: str) -> Seat:
+    """What a Claude Agent SDK row's client runs as for ``user_id``: each
+    call a CLI of the backend's own, on the token they saved, keeping what
+    it reports of their plan as their turns do."""
+    return Seat(identity=user_id, launcher=lambda: LocalLauncher(saved=SavedCredential(user_id), plan=UserPlan(user_id)))
 
 
 def turn_launcher(

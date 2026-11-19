@@ -23,6 +23,8 @@ CA, trusted through ``NODE_EXTRA_CA_CERTS`` in the CLI's environment only.
   from a compaction's summary with 529.
 - ``MAX_TOKENS``: answer ``part one`` and stop at the output limit, so the CLI
   continues the reply in a request of its own.
+- A request offering the CLI's ``StructuredOutput`` tool (``output_format``):
+  call it with each string field ``ECHO <text>``.
 - Anything else: ``ECHO <text>``.
 """
 
@@ -107,6 +109,11 @@ def plan(body: dict[str, Any]) -> list[dict[str, Any]]:
         # The CLI's summary request asks for a <summary> block, and it retries
         # a reply without one as a failed summary.
         return [think, {"type": "text", "text": f"<analysis>Reviewing.</analysis>\n<summary>ECHO {prompt.strip()[:120]}</summary>"}]
+    structured = next((t for t in body.get("tools", []) if t.get("name") == "StructuredOutput"), None)
+    if structured is not None and result is None:
+        fields = (structured.get("input_schema") or {}).get("properties") or {}
+        answer = {name: f"ECHO {prompt.strip()[:60]}" for name, spec in fields.items() if spec.get("type") == "string"}
+        return [think, {"type": "tool_use", "id": "toolu_" + uuid.uuid4().hex[:20], "name": "StructuredOutput", "input": answer}]
     if result is not None:
         content = result.get("content")
         if isinstance(content, list):

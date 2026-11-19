@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from ptc_agent.config.agent import CredentialSource
-from src.llms.claude_code import is_claude_code_model
+from src.llms.claude_code import is_claude_chat_model, is_claude_code_model, on_saved_token
 from src.llms.model_spec import (
     canonical_reasoning_efforts,
     reasoning_block,
@@ -240,8 +240,8 @@ class DeploymentRoute:
 
 @dataclass(frozen=True)
 class ClaudeCodeRoute:
-    """A Claude Code row: the runtime runs it on the setup token the user
-    saved for it, so it bills their Claude plan and never a key."""
+    """A Claude Code or Claude Agent SDK row: the CLI runs it on the setup
+    token the user saved for it, so it bills their Claude plan and never a key."""
 
     model_info: dict
 
@@ -547,7 +547,9 @@ async def resolve_model_client(
     steps are the ones the builders here ask, so keep the two in this order.
 
     A Claude Code row resolves to its runtime target, on the user's own
-    credential: the runtime signs in with the setup token kept for it, never a key.
+    credential: the runtime signs in with the setup token kept for it, never a
+    key. A Claude Agent SDK row resolves to a chat client bound to the user,
+    whose calls the backend's CLI signs in with that same token.
 
     Own access the ``policy`` denies (looked up when not given) is skipped as
     if it were not there, and a model that runs only on a denied sign-in is
@@ -566,6 +568,18 @@ async def resolve_model_client(
         return ResolvedClient(
             create_llm(model_name, reasoning_effort=reasoning_effort), source, CredentialSource.OAUTH
         )
+
+    if source == ModelSource.SYSTEM and is_claude_chat_model(model_name):
+        from src.llms.llm import create_llm
+
+        from .claude_code import claude_chat_seat
+
+        if not policy.allows(OWN_SUBSCRIPTIONS):
+            raise_model_denied(policy, OWN_SUBSCRIPTIONS, model_name)
+        seat = await claude_chat_seat(user_id, model_name)
+        client = create_llm(model_name, reasoning_effort=reasoning_effort)
+        client.seat = seat
+        return ResolvedClient(client, source, CredentialSource.OAUTH)
 
     if policy.allows(OWN_SUBSCRIPTIONS):
         client = await resolve_oauth_llm_client(
@@ -637,7 +651,7 @@ async def credential_route(
     mc = LLMFactory.get_model_config()
     source, entry = await user_models.classify_model(user_id, model_name, _pref_cache=_pref_cache)
     custom = source == ModelSource.CUSTOM
-    if source == ModelSource.SYSTEM and is_claude_code_model(model_name):
+    if source == ModelSource.SYSTEM and on_saved_token(model_name):
         return ClaudeCodeRoute(entry) if policy.allows(OWN_SUBSCRIPTIONS) else NoRoute()
     if route := subscription_route(model_name, mc, custom_entry=entry if custom else None):
         return route if policy.allows(OWN_SUBSCRIPTIONS) else NoRoute()
