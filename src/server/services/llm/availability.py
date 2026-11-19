@@ -395,13 +395,14 @@ def policy_refuses(policy: Policy, model_pref: dict, name: str) -> str | None:
     By name, before any credential is looked at: a custom model or a custom
     provider runs only on the user's own key, and a Claude Code row or a
     subscription's model only on the user's own sign-in, so with that access
-    denied there is nothing it could run on. Under an allow-list a custom
+    denied there is nothing it could run on (a Claude Agent SDK row runs on
+    that same saved token). Under an allow-list a custom
     entry is refused whatever it is named, for a caller that has not read
     the prefs through :func:`builtins_only`, as every turn does.
     """
     if policy.unrestricted:
         return None
-    from src.llms.claude_code import is_claude_code_model
+    from src.llms.claude_code import on_saved_token
     from src.llms.preferences import custom_model
     from src.server.services.policy import (
         MODELS_ALLOWED,
@@ -426,7 +427,7 @@ def policy_refuses(policy: Policy, model_pref: dict, name: str) -> str | None:
 
         from .clients import subscription_route
 
-        if is_claude_code_model(name) or subscription_route(
+        if on_saved_token(name) or subscription_route(
             name, LLMFactory.get_model_config(), custom_entry=entry
         ):
             return OWN_SUBSCRIPTIONS

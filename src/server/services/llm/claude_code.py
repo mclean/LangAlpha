@@ -166,6 +166,27 @@ def raise_claude_code_off(model_name: str, reason: str, *, message: str | None =
     raise HTTPException(status_code=400, detail=_refusal(model_name, reason, message=message, **fields))
 
 
+async def claude_chat_seat(user_id: str, model_name: str) -> Any:
+    """What a Claude Agent SDK row's client runs as for ``user_id``, each call
+    signed in with the setup token they saved (``launchers.chat_seat``);
+    refused as a Claude Code row is, in the same words, where they cannot run
+    it. It runs only on the backend's own CLI (``chat_on``), so a server whose
+    CLIs run only on users' computers does not run it."""
+    from src.server.services.claude_code.flow import chat_on, rows_on
+
+    if not rows_available():
+        raise_claude_code_off(model_name, "server")
+    if not await rows_on(user_id):
+        raise_claude_code_off(model_name, "account")
+    if not await chat_on(user_id):
+        raise_claude_code_off(model_name, "server")
+    if (refusal := await saved_refusal(user_id)) is not None:
+        raise_claude_code_off(model_name, refusal)
+    from src.server.services.claude_code.launchers import chat_seat
+
+    return chat_seat(user_id)
+
+
 def _refusal(model_name: str | None, reason: str, *, message: str | None = None, **fields: Any) -> dict[str, Any]:
     if message is None:
         message = claude_code_off_message(reason, **fields)

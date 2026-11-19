@@ -76,6 +76,7 @@ const LLM_PROVIDER_ART: Record<string, BrandArt> = {
   anthropic: ANTHROPIC,
   'claude-oauth': ANTHROPIC,
   'claude-code': mark(iconClaude, false, 'Claude'),
+  'claude-agent-sdk': mark(iconClaude, false, 'Claude'),
   gemini: mark(iconGemini, false, 'Gemini'),
   xai: XAI,
   'grok-oauth': XAI,

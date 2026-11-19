@@ -54,7 +54,7 @@ from market_protocol import MarketPhase
 from PIL import Image
 
 import src.llms.llm as llm_module
-from src.llms.claude_code import ClaudeCodeTarget
+from src.llms.claude_code import ClaudeCodeTarget, is_claude_chat_model
 from ptc_agent.agent.main_state import MainAgentState
 from ptc_agent.agent.middleware.compaction import middleware as compaction_module
 from ptc_agent.agent.middleware.compaction import utils as compaction_utils
@@ -119,11 +119,13 @@ def _native_claude(model: Any) -> bool:
 
 def _targets() -> list[str]:
     """Every catalog row langalpha sends requests for, other than native
-    Claude. A Claude Code row sends none: Claude Code builds its own."""
+    Claude. A Claude Code row sends none: Claude Code builds its own. A
+    Claude Agent SDK row is native Claude too, its request the CLI's."""
     manifest = json.loads((Path(llm_module.__file__).parent / "manifest" / "models.json").read_text())
     entries = [
         name for name in manifest
-        if not _native_claude(model := _build(name)) and not isinstance(model, ClaudeCodeTarget)
+        if not is_claude_chat_model(name)
+        and not _native_claude(model := _build(name)) and not isinstance(model, ClaudeCodeTarget)
     ]
     return [*entries, *CUSTOM_ROUTES]
 

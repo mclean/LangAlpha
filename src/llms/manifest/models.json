@@ -1560,5 +1560,124 @@
       "default": "medium",
       "write": "parameters.output_config.effort"
     }
+  },
+  "claude-fable-5-2-sdk": {
+    "prompt_guidance": "lean",
+    "model_id": "claude-fable-5-2",
+    "provider": "claude-agent-sdk",
+    "display_name": "Claude Fable 5.2",
+    "visible": true,
+    "speed": 3,
+    "intelligence": 5,
+    "context": 1000000,
+    "compaction_profile": "expansive",
+    "input_modalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "parameters": {
+      "max_tokens": 128000
+    },
+    "reasoning": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "medium",
+      "write": "parameters.output_config.effort"
+    }
+  },
+  "claude-opus-5-5-sdk": {
+    "prompt_guidance": "lean",
+    "model_id": "claude-opus-5-5",
+    "provider": "claude-agent-sdk",
+    "display_name": "Claude Opus 5.5",
+    "visible": true,
+    "speed": 3,
+    "intelligence": 5,
+    "context": 1000000,
+    "compaction_profile": "expansive",
+    "input_modalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "parameters": {
+      "max_tokens": 128000
+    },
+    "reasoning": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "medium",
+      "write": "parameters.output_config.effort"
+    }
+  },
+  "claude-sonnet-5-5-sdk": {
+    "prompt_guidance": "lean",
+    "model_id": "claude-sonnet-5-5",
+    "provider": "claude-agent-sdk",
+    "display_name": "Claude Sonnet 5.5",
+    "visible": true,
+    "speed": 4,
+    "intelligence": 4,
+    "context": 1000000,
+    "compaction_profile": "expansive",
+    "input_modalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "parameters": {
+      "max_tokens": 128000
+    },
+    "reasoning": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "medium",
+      "write": "parameters.output_config.effort"
+    }
+  },
+  "claude-haiku-5-5-sdk": {
+    "model_id": "claude-haiku-5-5",
+    "provider": "claude-agent-sdk",
+    "display_name": "Claude Haiku 5.5",
+    "visible": true,
+    "speed": 5,
+    "intelligence": 2,
+    "context": 1000000,
+    "compaction_profile": "expansive",
+    "input_modalities": [
+      "text",
+      "image",
+      "pdf"
+    ],
+    "parameters": {
+      "max_tokens": 128000
+    },
+    "reasoning": {
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "default": "medium",
+      "write": "parameters.output_config.effort"
+    }
   }
 }

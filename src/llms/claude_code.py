@@ -1,4 +1,4 @@
-"""Claude Code models: catalog rows whose turns the Claude Code runtime runs.
+"""Claude Code models: catalog rows the Claude Code CLI serves on a Claude plan.
 
 langalpha never calls a ``claude-code`` row over an API. The factory builds a
 ``ClaudeCodeTarget`` for it instead: a chat model in shape, so the stamps,
@@ -7,6 +7,12 @@ to be called. A turn reads what to run off it (the model id, the effort, the
 billing stamps) and hands the turn to the runtime in
 ``ptc_agent.agent.claude_code``, which this module never imports: the runtime's
 SDK is an optional extra that only a Claude Code turn loads.
+
+A ``claude-agent-sdk`` row (``CHAT_SDK``) is the other way round: an ordinary
+chat model langalpha's own loop calls, each call one request the CLI makes on
+the user's saved setup token (``ptc_agent.agent.claude_code.chat_model``). It
+can fill any model slot, a Background job or a summary included, and like a
+``claude-code`` row it never falls back to a key.
 """
 
 from __future__ import annotations
@@ -23,6 +29,8 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatResult
 
 SDK = "claude-code"
+#: The provider SDK of rows called as a chat model through the CLI.
+CHAT_SDK = "claude-agent-sdk"
 FEATURE = "claude_code_runtime"
 #: Which Claude message an assistant message is, stamped on every reply a
 #: Claude Code turn commits, so it also tells Claude's replies from another model's.
@@ -301,13 +309,29 @@ def claude_replied_last(messages: Sequence[BaseMessage]) -> bool:
     return last is not None and MESSAGE_ID_KEY in last.response_metadata
 
 
-def is_claude_code_model(name: object) -> bool:
-    """Whether ``name`` is a catalog row the Claude Code runtime runs."""
+def _row_sdk(name: object) -> str | None:
     from src.llms.llm import LLM
 
     mc = LLM.get_model_config()
     entry = mc.get_model_config(name) if isinstance(name, str) and name else None
-    return bool(entry) and mc.get_provider_info(entry.get("provider", "")).get("sdk") == SDK
+    return mc.get_provider_info(entry.get("provider", "")).get("sdk") if entry else None
+
+
+def is_claude_code_model(name: object) -> bool:
+    """Whether ``name`` is a catalog row the Claude Code runtime runs."""
+    return _row_sdk(name) == SDK
+
+
+def is_claude_chat_model(name: object) -> bool:
+    """Whether ``name`` is a catalog row langalpha calls as a chat model through the CLI."""
+    return _row_sdk(name) == CHAT_SDK
+
+
+def on_saved_token(name: object) -> bool:
+    """Whether ``name`` runs only on the setup token the user saved for Claude
+    Code, which bills their Claude plan: a runtime row or a chat row. Where
+    access to their own subscriptions is denied, neither has anything to run on."""
+    return is_claude_code_model(name) or is_claude_chat_model(name)
 
 
 def rows_available() -> bool:

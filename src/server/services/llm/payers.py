@@ -20,12 +20,12 @@ from pydantic import BaseModel
 
 from ptc_agent.config.agent import CredentialPayer, Payer
 from src.config import settings as app_settings
-from src.llms.claude_code import is_claude_code_model
+from src.llms.claude_code import is_claude_chat_model, is_claude_code_model
 from src.llms.llm import LLM as LLMFactory
 from src.server.database.api_keys import get_byok_configs_for_providers
 from src.server.database.oauth_tokens import get_oauth_connection
 from src.server.services.platform_client import platform_gating_active
-from src.server.services.claude_code.flow import rows_on
+from src.server.services.claude_code.flow import chat_on, rows_on
 from src.server.services.claude_code.hosted import saved_token_runs
 from src.server.services.claude_code.saved import usable_token
 from src.server.services.claude_oauth import CLAUDE_PROVIDER
@@ -156,12 +156,13 @@ async def model_payers(user_id: str) -> list[ModelPayer]:
     """One row per model the user can pick: the manifest's visible models,
     then the ones they added, a custom model taking a built-in's place."""
     mc = LLMFactory.get_model_config()
-    model_pref, own, sign_ins, (claude_code_on, claude_code_signed_in) = await asyncio.gather(
+    model_pref, own, sign_ins, (claude_code_on, claude_code_signed_in), claude_chat_on = await asyncio.gather(
         user_models.get_model_preference(user_id),
         # Own access the policy denies is not there, as a turn reads it.
         own_access(user_id, sign_ins=False),
         _sign_ins(user_id),
         _claude_code(user_id),
+        chat_on(user_id),
     )
     policy, is_byok = own.policy, own.api_keys
     gated = platform_gating_active()
@@ -185,6 +186,8 @@ async def model_payers(user_id: str) -> list[ModelPayer]:
         name: meta for name, meta in mc.get_model_metadata().items()
         if name not in custom_names
         and (claude_code_on or not is_claude_code_model(name))
+        # Its calls run on the backend's own CLI alone.
+        and (claude_chat_on or not is_claude_chat_model(name))
     }
 
     # One read of the user's keys for every route below, as a turn prefetches:

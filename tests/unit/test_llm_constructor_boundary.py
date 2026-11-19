@@ -96,7 +96,9 @@ ALLOWLIST: dict[tuple[str, str], int] = {
     # custom model a subscription serves, built on its sign-in, and a Claude
     # Code row's runtime target, which holds no credential. A custom model and
     # a custom-provider slug on the user's key share one build (``byok_key``).
-    ("src/server/services/llm/clients.py", "create_llm"): 4,
+    # A Claude Agent SDK row's client is built here too, then bound to the
+    # user whose saved setup token signs its calls in.
+    ("src/server/services/llm/clients.py", "create_llm"): 5,
     ("src/server/services/llm/clients.py", "create_llm_from_custom"): 2,
     # user_id=None system path AND resolved-None platform fallback (two calls).
     ("src/server/services/llm/service.py", "create_llm"): 2,
